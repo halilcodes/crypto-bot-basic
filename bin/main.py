@@ -7,17 +7,16 @@ import pprint
 from logkeeper import log_keeper
 
 
-
 if __name__ == "__main__":
 
     log_keeper("info.log")
-
+    
     binance = BinanceFuturesClient(BINANCE_TESTNET_API_PUBLIC, BINANCE_TESTNET_API_SECRET, True)
+    pprint.pprint(binance.get_balances())
 
     window = tk.Tk()
     window.title("$$$🚀💵 MoneyMachine 💵🚀$$$")
     window.configure(bg='gray12')
-
 
 
 
