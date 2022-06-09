@@ -1,4 +1,4 @@
-from keys import *
+from connectors.keys import *
 import tkinter as tk
 import logging
 from connectors.bitmex import get_bitmex_contracts

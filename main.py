@@ -30,7 +30,8 @@ logger.addHandler(file_handler)
 if __name__ == "__main__":
 
 
-    binance = BinanceFuturesClient(True)
+    binance = BinanceFuturesClient(BINANCE_TESTNET_API_PUBLIC, BINANCE_TESTNET_API_SECRET, True)
+    print(binance.get_balances())
 
     window = tk.Tk()
     window.title("$$$🚀💵 MoneyMachine 💵🚀$$$")
