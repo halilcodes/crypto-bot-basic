@@ -9,6 +9,7 @@ __pycache__/
 # API Keys
 keys.py
 .vscode/
+.idea/
 
 # Distribution / packaging
 .Python
