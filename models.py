@@ -16,11 +16,27 @@ class Balance:
             (preferably by passing the account info through a for loop)
     """
     def __init__(self, platform, info) -> None:
-        self.initial_margin = float(info['initialMargin'])
-        self.maintenance_margin = float(info['maintMargin'])
-        self.margin_balance = float(info['marginBalance'])
-        self.wallet_balance = float(info['walletBalance'])
-        self.unrealized_pnl = float(info['unrealizedProfit'])
+        self.info = info
+        self.platform = platform
+        if self.platform == "binance":
+            self._get_binance_balance()
+        elif self.platform == "bitmex":
+            self._get_bitmex_balance()
+
+    def _get_binance_balance(self):
+        self.initial_margin = float(self.info['initialMargin'])
+        self.maintenance_margin = float(self.info['maintMargin'])
+        self.margin_balance = float(self.info['marginBalance'])
+        self.wallet_balance = float(self.info['walletBalance'])
+        self.unrealized_pnl = float(self.info['unrealizedProfit'])
+
+    def _get_bitmex_balance(self):
+        # TODO: NOT EVEN CLOSE
+        self.initial_margin = float()
+        self.maintenance_margin = float()
+        self.margin_balance = float()
+        self.wallet_balance = float()
+        self.unrealized_pnl = float()
 
 
 class Candle:
@@ -37,22 +53,24 @@ class Candle:
 class Contract:
 
     def __init__(self, platform, contract_info):
-        if platform == "binance":
-            self._get_binance_contracts(contract_info)
-        elif platform == "bitmex":
-            self._get_bitmex_contracts(contract_info)
+        self.contract_info = contract_info
+        self.platform = platform
+        if self.platform == "binance":
+            self._get_binance_contracts()
+        elif self.platform == "bitmex":
+            self._get_bitmex_contracts()
 
-    def _get_binance_contracts(self, contract_info):
-        self.symbol = contract_info['symbol']   # ETHUSDT
-        self.base_asset = contract_info['baseAsset']    # ETH
-        self.quote_asset = contract_info['quoteAsset']  # USDT
-        self.price_decimals = contract_info['pricePrecision']
-        self.quantity_decimals = contract_info['quantityPrecision']
+    def _get_binance_contracts(self):
+        self.symbol = self.contract_info['symbol']   # ETHUSDT
+        self.base_asset = self.contract_info['baseAsset']    # ETH
+        self.quote_asset = self.contract_info['quoteAsset']  # USDT
+        self.price_decimals = self.contract_info['pricePrecision']
+        self.quantity_decimals = self.contract_info['quantityPrecision']
 
-    def _get_bitmex_contracts(self, contract_info):
-        self.symbol = contract_info['symbol']
-        self.base_asset = contract_info['positionCurrency']
-        self.quote_asset = contract_info['quoteCurrency']
+    def _get_bitmex_contracts(self):
+        self.symbol = self.contract_info['symbol']
+        self.base_asset = self.contract_info['positionCurrency']
+        self.quote_asset = self.contract_info['quoteCurrency']
         self.price_decimals = 0
         self.quantity_decimals = 0
         # TODO: figure out bitmex precision levels from its API

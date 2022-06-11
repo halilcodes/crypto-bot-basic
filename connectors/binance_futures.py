@@ -160,7 +160,7 @@ class BinanceFuturesClient:
         account_data = self._make_requests("GET", endpoint, data)
         if account_data is not None:
             for asset in account_data['assets']:
-                balances[asset['asset']] = Balance(asset)
+                balances[asset['asset']] = Balance(self.platform, asset)
 
         return balances
 
@@ -310,4 +310,4 @@ if __name__ == "__main__":
     binance = BinanceFuturesClient(BINANCE_TESTNET_API_PUBLIC,
                                    BINANCE_TESTNET_API_SECRET, testnet=True)
 
-    binance.get_contracts()
+    pprint.pprint(binance.get_balances())
