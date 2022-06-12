@@ -3,6 +3,9 @@
 # TODO: Make each class a "platform" parameter. defince a platform variable in each client's __init__ method.
 # so tht each class should get the right info like that instead of try/except blocks.
 
+BITMEX_MULTIPLIER = 0.00000001
+
+
 class Balance:
 
     """
@@ -31,23 +34,38 @@ class Balance:
         self.unrealized_pnl = float(self.info['unrealizedProfit'])
 
     def _get_bitmex_balance(self):
-        # TODO: NOT EVEN CLOSE
-        self.initial_margin = float()
-        self.maintenance_margin = float()
-        self.margin_balance = float()
-        self.wallet_balance = float()
-        self.unrealized_pnl = float()
+        self.initial_margin = self.info['initMargin'] * BITMEX_MULTIPLIER
+        self.maintenance_margin = self.info['maintMargin'] * BITMEX_MULTIPLIER
+        self.margin_balance = self.info['marginBalance'] * BITMEX_MULTIPLIER
+        self.wallet_balance = self.info['walletBalance'] * BITMEX_MULTIPLIER
+        self.unrealized_pnl = self.info['unrealisedPnl'] * BITMEX_MULTIPLIER
 
 
 class Candle:
 
-    def __init__(self, candle_info) -> None:
-        self.timestamp = candle_info[0]
-        self.open = float(candle_info[1])
-        self.high = float(candle_info[2])
-        self.low = float(candle_info[3])
-        self.close = float(candle_info[4])
-        self.volume = float(candle_info[5])
+    def __init__(self, platform, candle_info) -> None:
+        self.candle_info = candle_info
+        self.platform = platform
+        if self.platform == "binance":
+            self._get_binance_candles()
+        elif self.platform == "bitmex":
+            self._get_bitmex_candles()
+
+    def _get_binance_candles(self):
+        self.timestamp = self.candle_info[0]
+        self.open = float(self.candle_info[1])
+        self.high = float(self.candle_info[2])
+        self.low = float(self.candle_info[3])
+        self.close = float(self.candle_info[4])
+        self.volume = float(self.candle_info[5])
+
+    def _get_bitmex_candles(self):
+        self.timestamp = self.candle_info["timestamp"]
+        self.open = self.candle_info["open"]
+        self.high = self.candle_info["high"]
+        self.low = self.candle_info["low"]
+        self.close = self.candle_info["close"]
+        self.volume = self.candle_info["volume"]
 
 
 class Contract:
@@ -69,16 +87,29 @@ class Contract:
 
     def _get_bitmex_contracts(self):
         self.symbol = self.contract_info['symbol']
-        self.base_asset = self.contract_info['positionCurrency']
+        self.base_asset = self.contract_info['rootSymbol']
         self.quote_asset = self.contract_info['quoteCurrency']
-        self.price_decimals = 0
-        self.quantity_decimals = 0
+        self.price_decimals = self.contract_info['tickSize']
+        self.quantity_decimals = self.contract_info['lotSize']
         # TODO: figure out bitmex precision levels from its API
 
 
 class OrderStatus:
 
-    def __init__(self, order_info):
-        self.order_id = order_info['orderId']
-        self.status = order_info['status']
-        self.avg_price = float(order_info['avgPrice'])
+    def __init__(self, platform, order_info):
+        self.platform = platform
+        self.order_info = order_info
+        if self.platform == "binance":
+            self._get_binance_order_status()
+        elif self.platform == "bitmex":
+            self._get_bitmex_order_status()
+
+    def _get_binance_order_status(self):
+        self.order_id = self.order_info['orderId']
+        self.status = self.order_info['status']
+        self.avg_price = float(self.order_info['avgPrice'])
+
+    def _get_bitmex_order_status(self):
+        self.order_id = self.order_info['orderID']
+        self.status = self.order_info['ordStatus']
+        self.avg_price = self.order_info['avgPx']
