@@ -10,7 +10,8 @@ import logging
 from keys import *
 import threading
 from models import *
-
+import websocket
+import numpy
 logger = logging.getLogger()
 
 
@@ -41,16 +42,17 @@ class BitmexClient:
             self._wss_url = "wss://ws.bitmex.com/realtime"
             self.connection_type = "Real Account"
 
-        self._ws = None
         self.platform = "bitmex"
 
         self.contracts = self.get_contracts()
         self.balances = self.get_balances()
 
         self.prices = dict()
+        self._ws_id = 1
+        self._ws = None
 
-        # t = threading.Thread(target=self._start_ws)
-        # t.start()
+        t = threading.Thread(target=self._start_ws)
+        t.start()
 
         logger.info("Bitmex Client successfully initialized")
 
@@ -96,7 +98,7 @@ class BitmexClient:
         if instruments is not None:
             for s in instruments:
                 symbol = s['symbol']
-                if _is_tradable(symbol, ""):
+                if _is_tradable(symbol, "") and not symbol.startswith("."):
                     contracts[s['symbol']] = Contract(self.platform, s)
 
         return contracts
@@ -154,7 +156,7 @@ class BitmexClient:
 
         return order_info
         
-    def get_order_status(self, order_id: str, contract: Contract):
+    def get_order_status(self, order_id: str, contract: Contract) -> OrderStatus:
         endpoint = "/order"
         method = "GET"
         data = dict()
@@ -169,7 +171,7 @@ class BitmexClient:
                     order_status = OrderStatus(self.platform, order)
                     return order_status
 
-    def cancel_order(self, order_id: str):
+    def cancel_order(self, order_id: str) -> OrderStatus:
         endpoint = "/order"
         method = "DELETE"
         data = dict()
@@ -182,8 +184,70 @@ class BitmexClient:
 
         return order_info
 
+    def get_current_open_orders(self):
+        pass
+
+    def get_bid_ask(self, contract: Contract):
+        pass
+
+    def _start_ws(self):
+        self._ws = websocket.WebSocketApp(self._wss_url,
+                                          on_open=self._on_open, on_close=self._on_close,
+                                          on_error=self._on_error, on_message=self._on_message)
+        while True:
+            try:
+                self._ws.run_forever()
+            except Exception as e:
+                logger.error("Bitmex error in run_forever() method: %s", e)
+            time.sleep(2)
+
+    def _on_open(self, ws):
+        logger.info("Bitmex WebSocket connection opened.")
+
+        self.subscribe_channel("instrument")
+
+    def _on_close(self, ws):
+        logger.warning("Bitmex WebSocket connection closed.")
+
+    def _on_error(self, ws, msg: str):
+        logger.error("Bitmex WebSocket connection error: %s", msg)
+
+    def _on_message(self, ws, msg: str):
+
+        data = json.loads(msg)
+
+        if "table" in data:
+            if data['table'] == 'instrument':
+                for d in data['data']:
+
+                    symbol = d['symbol']
+                    if symbol.startswith("."):
+                        continue
+
+                    if symbol not in self.prices:
+                        self.prices[symbol] = {'bid': None, 'ask': None}
+
+                    if 'bidPrice' in d:
+                        self.prices[symbol]['bid'] = d['bidPrice']
+                    if 'askPrice' in d:
+                        self.prices[symbol]['ask'] = d['askPrice']
+
+                    print(symbol, self.prices[symbol])
+
+    def subscribe_channel(self, topic: str):
+        data = dict()
+        data['op'] = "subscribe"
+        data['args'] = []
+        data['args'].append(topic)
+
+        try:
+            self._ws.send(json.dumps(data))
+        except Exception as e:
+            logger.error("Bitmex Websocket error while subscribing to %s: %s",topic, e)
+
+        self._ws_id += 1
+
 
 if __name__ == "__main__":
 
     bitmex = BitmexClient(BITMEX_TESTNET_API_PUBLIC, BITMEX_TESTNET_API_SECRET, testnet=True)
-    pprint.pprint(bitmex.get_order_status())

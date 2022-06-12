@@ -271,7 +271,6 @@ class BinanceFuturesClient:
         logger.error("Binance WebSocket connection error: %s", msg)
 
     def _on_message(self, ws, msg: str):
-        # logger.info("Binance WebSocket Message: %s", msg)
 
         data = json.loads(msg)
 
