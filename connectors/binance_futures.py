@@ -130,7 +130,7 @@ class BinanceFuturesClient:
         candles = []
         if raw_candles is not None:
             for candle in raw_candles:
-                candles.append(Candle(self.platform, candle))
+                candles.append(Candle(self.platform, candle, interval))
 
         return candles  # time, open, high, low, close, volume
 

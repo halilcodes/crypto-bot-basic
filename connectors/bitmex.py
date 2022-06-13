@@ -124,14 +124,15 @@ class BitmexClient:
         data['partial'] = True
         data['binSize'] = timeframe
         data['count'] = 500
+        data['reverse'] = True
         
         raw_candles = self._make_request(method="GET", endpoint=endpoint, params=data)
         
         candles = []
         
         if raw_candles is not None:
-            for each in raw_candles:
-                candles.append(Candle(self.platform, each))
+            for each in reversed(raw_candles):
+                candles.append(Candle(self.platform, each, timeframe))
 
         return candles
 
@@ -232,8 +233,6 @@ class BitmexClient:
                     if 'askPrice' in d:
                         self.prices[symbol]['ask'] = d['askPrice']
 
-                    print(symbol, self.prices[symbol])
-
     def subscribe_channel(self, topic: str):
         data = dict()
         data['op'] = "subscribe"
@@ -250,4 +249,4 @@ class BitmexClient:
 
 if __name__ == "__main__":
 
-    bitmex = BitmexClient(BITMEX_TESTNET_API_PUBLIC, BITMEX_TESTNET_API_SECRET, testnet=True)
+    bitmex = BitmexClient(BITMEX_API_PUBLIC, BITMEX_API_SECRET, testnet=True)

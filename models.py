@@ -1,9 +1,11 @@
-
-
+import dateutil.parser
+import datetime
 # TODO: Make each class a "platform" parameter. defince a platform variable in each client's __init__ method.
 # so tht each class should get the right info like that instead of try/except blocks.
 
 BITMEX_MULTIPLIER = 0.00000001
+BITMEX_TF_MINUTES = {"1m": 1, "5m": 5, "1h": 60, "4h": 240, "1d": 1440}
+# TODO: Complete BITMEX_TF_MINUTES dict with all possible timeframes
 
 
 class Balance:
@@ -43,9 +45,10 @@ class Balance:
 
 class Candle:
 
-    def __init__(self, platform, candle_info) -> None:
+    def __init__(self, platform, candle_info, timeframe: str) -> None:
         self.candle_info = candle_info
         self.platform = platform
+        self.timeframe = timeframe
         if self.platform == "binance":
             self._get_binance_candles()
         elif self.platform == "bitmex":
@@ -60,7 +63,11 @@ class Candle:
         self.volume = float(self.candle_info[5])
 
     def _get_bitmex_candles(self):
-        self.timestamp = self.candle_info["timestamp"]
+        """ timestamp in Bitmex are the END of the period and in string format"""
+        str_time = dateutil.parser.isoparse(self.candle_info["timestamp"])
+        str_time = str_time - datetime.timedelta(minutes=BITMEX_TF_MINUTES[self.timeframe])
+        self.timestamp = int(str_time.timestamp() * 1000)
+        print(self.candle_info["timestamp"], str_time, self.timestamp)
         self.open = self.candle_info["open"]
         self.high = self.candle_info["high"]
         self.low = self.candle_info["low"]
