@@ -75,6 +75,20 @@ class Candle:
         self.volume = self.candle_info["volume"]
 
 
+def tick_to_decimals(tick_size: float) -> int:
+    tick_size_str = "{0:.8f}".format(tick_size)
+    # 0.000010000
+    while tick_size_str[-1] == "0":
+        tick_size_str = tick_size_str[:-1]
+
+    split_tick = tick_size_str.split(".")
+
+    if len(split_tick) > 1:
+        return len(split_tick[1])
+    else:
+        return 0
+
+
 class Contract:
 
     def __init__(self, platform, contract_info):
@@ -91,14 +105,18 @@ class Contract:
         self.quote_asset = self.contract_info['quoteAsset']  # USDT
         self.price_decimals = self.contract_info['pricePrecision']
         self.quantity_decimals = self.contract_info['quantityPrecision']
+        self.tick_size = 1 / pow(10, self.contract_info['pricePrecision'])
+        self.lot_size = 1 / pow(10, self.contract_info['quantityPrecision'])
 
     def _get_bitmex_contracts(self):
         self.symbol = self.contract_info['symbol']
         self.base_asset = self.contract_info['rootSymbol']
         self.quote_asset = self.contract_info['quoteCurrency']
-        self.price_decimals = self.contract_info['tickSize']
-        self.quantity_decimals = self.contract_info['lotSize']
-        # TODO: figure out bitmex precision levels from its API
+        self.tick_size = self.contract_info['tickSize']
+        self.lot_size = self.contract_info['lotSize']
+        self.price_decimals = self.contract_info['pricePrecision']
+        self.quantity_decimals = self.contract_info['quantityPrecision']
+
 
 
 class OrderStatus:
