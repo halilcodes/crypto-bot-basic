@@ -11,7 +11,7 @@ from keys import *
 import threading
 from models import *
 import websocket
-import numpy
+
 logger = logging.getLogger()
 
 
@@ -51,10 +51,16 @@ class BitmexClient:
         self._ws_id = 1
         self._ws = None
 
+        self.logs = []
+
         t = threading.Thread(target=self._start_ws)
         t.start()
 
         logger.info("Bitmex Client successfully initialized")
+
+    def _add_log(self, msg: str):
+        logger.info("%s", msg)
+        self.logs.append({"log": msg, "displayed": False})
 
     def _generate_signature(self, method: str, endpoint: str, expires: str, data: typing.Dict) -> str:
 
@@ -137,16 +143,31 @@ class BitmexClient:
         return candles
 
     def place_order(self, contract: Contract, side: str, quantity: int,
-                    order_type: str, price=None, tif="GoodTillCancel") -> OrderStatus:
+                    order_type: str, price=None, tif=None) -> OrderStatus:
+        """
+        Args:
+            contract:
+            side:
+            quantity: Limit order quantity of base asset. i.e: 100 of XBTUSD is 100 USD worth of XBT at set price.
+                        This may be counter-intuitive and needs solving
+            order_type:
+            price:
+            tif: default "GoodTillCancel"
+
+        Returns:
+
+        """
+        # TODO: quantity parameter needs fine-tuning
+
         endpoint = "/order"
         method = "POST"
         data = dict()
         data['symbol'] = contract.symbol
         data['side'] = side.capitalize()
-        data['orderQty'] = quantity
+        data['orderQty'] = round(quantity / contract.lot_size) * contract.lot_size
         data['ordType'] = order_type.capitalize()
         if price is not None:
-            data['price'] = price
+            data['price'] = round(round(price / contract.tick_size) * contract.tick_size, 8)
         if tif is not None:
             data['timeInForce'] = tif
 
@@ -232,6 +253,10 @@ class BitmexClient:
                         self.prices[symbol]['bid'] = d['bidPrice']
                     if 'askPrice' in d:
                         self.prices[symbol]['ask'] = d['askPrice']
+
+                    if symbol == "XBTUSD":
+                        self._add_log(symbol + " " + str(self.prices[symbol]['bid']) + " / " +
+                                      str(self.prices[symbol]['ask']))
 
     def subscribe_channel(self, topic: str):
         data = dict()

@@ -105,8 +105,8 @@ class Contract:
         self.quote_asset = self.contract_info['quoteAsset']  # USDT
         self.price_decimals = self.contract_info['pricePrecision']
         self.quantity_decimals = self.contract_info['quantityPrecision']
-        self.tick_size = 1 / pow(10, self.contract_info['pricePrecision'])
-        self.lot_size = 1 / pow(10, self.contract_info['quantityPrecision'])
+        self.tick_size = 1 / pow(10, self.price_decimals)
+        self.lot_size = 1 / pow(10, self.quantity_decimals)
 
     def _get_bitmex_contracts(self):
         self.symbol = self.contract_info['symbol']
@@ -114,9 +114,8 @@ class Contract:
         self.quote_asset = self.contract_info['quoteCurrency']
         self.tick_size = self.contract_info['tickSize']
         self.lot_size = self.contract_info['lotSize']
-        self.price_decimals = self.contract_info['pricePrecision']
-        self.quantity_decimals = self.contract_info['quantityPrecision']
-
+        self.price_decimals = tick_to_decimals(self.tick_size)
+        self.quantity_decimals = tick_to_decimals(self.lot_size)
 
 
 class OrderStatus:

@@ -71,10 +71,16 @@ class BinanceFuturesClient:
         self._ws_id = 1
         self._ws = None
 
+        self.logs = []
+
         t = threading.Thread(target=self._start_ws)
         t.start()
 
         logger.info(f"Binance Futures Client {self.connection_type} successfully initialized")
+
+    def _add_log(self, msg: str):
+        logger.info("%s", msg)
+        self.logs.append({"log": msg, "displayed": False})
 
     def _generate_signature(self, data: typing.Dict) -> str:
         # TODO: Inspect and explore this method.
@@ -167,17 +173,28 @@ class BinanceFuturesClient:
     def place_order(self, contract: Contract, side: str, quantity: float, order_type: str, price=None, tif=None)\
             -> OrderStatus:
         """
-        
+
+        Args:
+            contract:
+            side:
+            quantity: Limit order quantity of quote asset. i.e: 1.4 of BTCUSDT is 1.4 BTC
+            order_type:
+            price:
+            tif: default 'GTC'
+
+        Returns:
+
         """
+
         endpoint = "/fapi/v1/order"    # POST
         data = dict()
         data['symbol'] = contract.symbol
-        data['side'] = side
-        data['quantity'] = quantity
-        data["type"] = order_type
+        data['side'] = side.upper()
+        data['quantity'] = round(round(quantity / contract.lot_size) * contract.lot_size, 8)
+        data["type"] = order_type.upper().replace("İ", "I")
 
         if price is not None:
-            data['price'] = price
+            data['price'] = round(round(price / contract.tick_size) * contract.tick_size, 8)
         if tif is not None:
             data['timeInForce'] = tif
         data['timestamp'] = int(time.time() * 1000)
@@ -194,9 +211,11 @@ class BinanceFuturesClient:
     # in order to access when we need to cancel or get status
 
     def place_market_order(self):
+        # TODO: code
         return
     
     def place_limit_order(self):
+        # TODO: code
         return
 
     def cancel_order(self, contract: Contract, order_id: int):
@@ -214,6 +233,10 @@ class BinanceFuturesClient:
             order_status = OrderStatus(self.platform, order_status)
 
         return order_status
+
+    def cancel_all_open_orders(self):
+        # TODO: code
+        return
 
     def get_order_status(self, contract: Contract, order_id: int) -> OrderStatus:
         endpoint = "/fapi/v1/order"  # GET
