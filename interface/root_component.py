@@ -64,5 +64,5 @@ class Root(tk.Tk):
                     continue
                 if symbol not in self.binance.prices:
                     continue
-                
+
         self.after(1500, self._update_ui)

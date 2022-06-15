@@ -4,8 +4,8 @@ import datetime
 # so tht each class should get the right info like that instead of try/except blocks.
 
 BITMEX_MULTIPLIER = 0.00000001
-BITMEX_TF_MINUTES = {"1m": 1, "5m": 5, "1h": 60, "4h": 240, "1d": 1440}
-# TODO: Complete BITMEX_TF_MINUTES dict with all possible timeframes
+BITMEX_TF_MINUTES = {"1m": 1, "5m": 5, "1h": 60, "1d": 1440}
+# available options: [1m,5m,1h,1d]
 
 
 class Balance:
