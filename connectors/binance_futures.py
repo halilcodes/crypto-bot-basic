@@ -121,7 +121,7 @@ class BinanceFuturesClient:
 
         if exchange_info is not None:
             for contract_data in exchange_info['symbols']:
-                contracts[contract_data['pair']] = Contract(self.platform, contract_data)
+                contracts[contract_data['symbol']] = Contract(self.platform, contract_data)
 
         return contracts
 

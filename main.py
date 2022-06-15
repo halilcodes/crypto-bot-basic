@@ -15,4 +15,6 @@ if __name__ == "__main__":
 
     root = Root(binance, bitmex)
 
+    pprint.pprint(binance.get_bid_ask(binance.contracts["APEUSDT"]))
+
     root.mainloop()

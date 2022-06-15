@@ -5,13 +5,16 @@ COMPONENTS=
 - Strategies
 -Trades
 """
-import time
+import logging
 import tkinter as tk
 from interface.styling import *
 from interface.logging_component import Logging
 from connectors.bitmex import BitmexClient
 from connectors.binance_futures import BinanceFuturesClient
 from interface.watchlist_component import WatchList
+from interface.trades_component import TradesWatch
+
+logger = logging.getLogger()
 
 
 class Root(tk.Tk):
@@ -34,6 +37,9 @@ class Root(tk.Tk):
                                           self._left_frame, bg=BG_COLOR)
         self._watchlist_frame.pack(side=tk.TOP)
 
+        self._trades_frame = TradesWatch(self.binance, self.bitmex, self._right_frame, bg=BG_COLOR)
+        self._trades_frame.pack(side=tk.TOP)
+
         self._logging_frame = Logging(self._left_frame, bg=BG_COLOR)
         self._logging_frame.pack(side=tk.TOP)
 
@@ -55,14 +61,43 @@ class Root(tk.Tk):
 
         # Watchlist Prices
 
-        for key, value in self._watchlist_frame.body_widgets['Symbol'].items():
-            symbol = self._watchlist_frame.body_widgets['Symbol'][key].cget('text')
-            exchange = self._watchlist_frame.body_widgets['Exchange'][key].cget('text')
+        try:
+            for key, value in self._watchlist_frame.body_widgets['Symbol'].items():
+                symbol = self._watchlist_frame.body_widgets['Symbol'][key].cget('text')
+                exchange = self._watchlist_frame.body_widgets['Exchange'][key].cget('text')
 
-            if exchange == "Binance":
-                if symbol not in self.binance.contracts:
+                if exchange == "Binance":
+                    if symbol not in self.binance.contracts:
+                        continue
+                    if symbol not in self.binance.prices:
+                        try:
+                            self.binance.get_bid_ask(self.binance.contracts)
+                        except AttributeError as e:
+                            # This try-except catches exception where in the first couple minutes of running,
+                            # websockets might not get all bid/asks so UI gets Attribute error for contract.symbol
+                            # entered to the watchlist
+                            logger.error("AttributeError while getting bid/asks for a symbol: %s", e)
+                            continue
+                    precision = self.binance.contracts[symbol].price_decimals
+                    prices = self.binance.prices[symbol]
+
+                elif exchange == "Bitmex":
+                    if symbol not in self.bitmex.contracts:
+                        continue
+                    if symbol not in self.binance.prices:
+                        continue
+                    precision = self.bitmex.contracts[symbol].price_decimals
+                    prices = self.bitmex.prices[symbol]
+                else:
                     continue
-                if symbol not in self.binance.prices:
-                    continue
+
+                if prices['bid'] is not None:
+                    price_str = "{0:.{prec}f}".format(prices['bid'], prec=precision)
+                    self._watchlist_frame.body_widgets['Bid_var'][key].set(price_str)
+                if prices['ask'] is not None:
+                    price_str = "{0:.{prec}f}".format(prices['ask'], prec=precision)
+                    self._watchlist_frame.body_widgets['Ask_var'][key].set(price_str)
+        except RuntimeError as e:
+            logger.error("RuntimeError while looping through watchlist dictionary: %s", e)
 
         self.after(1500, self._update_ui)
