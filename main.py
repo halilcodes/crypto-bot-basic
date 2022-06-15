@@ -11,10 +11,8 @@ if __name__ == "__main__":
 
     log_keeper("info.log")
     binance = BinanceFuturesClient(BINANCE_TESTNET_API_PUBLIC, BINANCE_TESTNET_API_SECRET, True)
-    bitmex = BitmexClient(BITMEX_API_PUBLIC, BITMEX_API_SECRET, True)
+    bitmex = BitmexClient(BITMEX_TESTNET_API_PUBLIC, BITMEX_TESTNET_API_SECRET, True)
 
     root = Root(binance, bitmex)
-
-    pprint.pprint(binance.get_bid_ask(binance.contracts["APEUSDT"]))
 
     root.mainloop()

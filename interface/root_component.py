@@ -13,6 +13,8 @@ from connectors.bitmex import BitmexClient
 from connectors.binance_futures import BinanceFuturesClient
 from interface.watchlist_component import WatchList
 from interface.trades_component import TradesWatch
+from interface.strategy_component import StrategyEditor
+import threading
 
 logger = logging.getLogger()
 
@@ -36,6 +38,9 @@ class Root(tk.Tk):
         self._watchlist_frame = WatchList(self.binance.contracts, self.bitmex.contracts,
                                           self._left_frame, bg=BG_COLOR)
         self._watchlist_frame.pack(side=tk.TOP)
+
+        self._strategy_frame = StrategyEditor(self._right_frame, bg=BG_COLOR)
+        self._strategy_frame.pack(side=tk.TOP)
 
         self._trades_frame = TradesWatch(self.binance, self.bitmex, self._right_frame, bg=BG_COLOR)
         self._trades_frame.pack(side=tk.TOP)
@@ -62,9 +67,9 @@ class Root(tk.Tk):
         # Watchlist Prices
 
         try:
-            for key, value in self._watchlist_frame.body_widgets['Symbol'].items():
-                symbol = self._watchlist_frame.body_widgets['Symbol'][key].cget('text')
-                exchange = self._watchlist_frame.body_widgets['Exchange'][key].cget('text')
+            for key, value in self._watchlist_frame.body_widgets['symbol'].items():
+                symbol = self._watchlist_frame.body_widgets['symbol'][key].cget('text')
+                exchange = self._watchlist_frame.body_widgets['exchange'][key].cget('text')
 
                 if exchange == "Binance":
                     if symbol not in self.binance.contracts:
@@ -77,6 +82,15 @@ class Root(tk.Tk):
                             # websockets might not get all bid/asks so UI gets Attribute error for contract.symbol
                             # entered to the watchlist
                             logger.error("AttributeError while getting bid/asks for a symbol: %s", e)
+                            t = threading.Thread(target=self.binance._start_ws)
+                            t.start()
+                            # TODO: Sometimes Binance Websocket does not connect for 1-2 minutes,
+                            # I need to be sure not to take action before connection established or
+                            # retry connection like commented 2 lines above (?)
+                            # Above 2 lines work, it forces a new websocket and eventually we get a
+                            # connection. Still needs manual handling though
+                            # EUREKA!: Create sample contract object with missing symbol, get_bid_ask() and add
+                            # that to binance.contracts in the exception code-block
                             continue
                     precision = self.binance.contracts[symbol].price_decimals
                     prices = self.binance.prices[symbol]
@@ -84,7 +98,7 @@ class Root(tk.Tk):
                 elif exchange == "Bitmex":
                     if symbol not in self.bitmex.contracts:
                         continue
-                    if symbol not in self.binance.prices:
+                    if symbol not in self.bitmex.prices:
                         continue
                     precision = self.bitmex.contracts[symbol].price_decimals
                     prices = self.bitmex.prices[symbol]
@@ -93,10 +107,10 @@ class Root(tk.Tk):
 
                 if prices['bid'] is not None:
                     price_str = "{0:.{prec}f}".format(prices['bid'], prec=precision)
-                    self._watchlist_frame.body_widgets['Bid_var'][key].set(price_str)
+                    self._watchlist_frame.body_widgets['bid_var'][key].set(price_str)
                 if prices['ask'] is not None:
                     price_str = "{0:.{prec}f}".format(prices['ask'], prec=precision)
-                    self._watchlist_frame.body_widgets['Ask_var'][key].set(price_str)
+                    self._watchlist_frame.body_widgets['ask_var'][key].set(price_str)
         except RuntimeError as e:
             logger.error("RuntimeError while looping through watchlist dictionary: %s", e)
 
