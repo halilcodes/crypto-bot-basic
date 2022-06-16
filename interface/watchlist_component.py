@@ -57,7 +57,7 @@ class WatchList(tk.Frame):
             self.body_widgets[h][b_index].grid_forget()
             del self.body_widgets[h][b_index]
 
-    # TODO: Instead of en entry box, it may be better to use select box... we already have the keys list above.
+    # TODO: Instead of en entry box, it may be better to use tk.OptionMenu... we already have the keys list above.
     # using select box may eliminate typing mistakes or upper-lower case mistakes
 
     def _add_binance_symbol(self, event):
