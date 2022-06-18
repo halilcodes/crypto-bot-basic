@@ -1,14 +1,25 @@
 import tkinter as tk
 
 from interface.styling import *
+from connectors.bitmex import BitmexClient
+from connectors.binance_futures import BinanceFuturesClient
+from strategies import *
 
 
 class StrategyEditor(tk.Frame):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, root, binance: BinanceFuturesClient, bitmex: BitmexClient, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.root = root
+
+        self._exchanges = {"Binance": binance, "Bitmex": bitmex}
 
         self._all_contracts = ["BTCUSDT", "ETHUSDT"]
         self._all_timeframes = ["1m", "5m", "15m", "30m", "1h", "4h"]
+
+        for exchange, client in self._exchanges.items():
+            for symbol, contract in client.contracts.items():
+                self._all_contracts.append(symbol + "_" + exchange.capitalize())
 
         self._commands_frame = tk.Frame(self, bg=BG_COLOR)
         self._commands_frame.pack(side=tk.TOP)
@@ -25,6 +36,8 @@ class StrategyEditor(tk.Frame):
         self._headers = ["Strategy", "Contract", "Timeframe", "Balance %", "TP %", "SL %"]
 
         self._additional_parameters = dict()
+        # _extra_input is specific for each popup, so the code does not store for extra inputs for each strategy
+        # but it does not seem right
         self._extra_input = dict()
 
         for idx, h in enumerate(self._headers):
@@ -114,7 +127,10 @@ class StrategyEditor(tk.Frame):
             self.body_widgets[element['code_name']][b_index].grid_forget()
 
             del self.body_widgets[element['code_name']][b_index]
-            del self._additional_parameters[b_index]
+        del self._additional_parameters[b_index]
+        # pprint.pprint(self._additional_parameters)
+        # print(f"b_index = {b_index}")
+        # print("*" * 50)
 
     def _show_popup(self, b_index: int):
         x = self.body_widgets["parameters"][b_index].winfo_rootx()
@@ -170,4 +186,79 @@ class StrategyEditor(tk.Frame):
         self._popup_window.destroy()
 
     def _switch_strategy(self, b_index: int):
-        return
+
+        for param in ["balance_pct", "take_profit", "stop_loss"]:
+            if self.body_widgets[param][b_index].get() == "":
+                self.root.logging_frame.add_log(f"Missing {param} parameter")
+                return
+
+        strategy_selected = self.body_widgets['strategy_type_var'][b_index].get()
+
+        for param in self._extra_params[strategy_selected]:
+            code_name = param['code_name']
+            if self._additional_parameters[b_index][code_name] is None:
+                self.root.logging_frame.add_log(f"Missing {code_name} parameter")
+                return
+
+        contract_name = self.body_widgets['contract_var'][b_index].get()   # "ADAUSDT_Binance"
+        symbol = contract_name.split("_")[0]
+        exchange = contract_name.split("_")[1]
+        timeframe = self.body_widgets['timeframe_var'][b_index].get()
+        contract = self._exchanges[exchange].contracts[symbol]
+
+        balance_pct = float(self.body_widgets['balance_pct'][b_index].get())
+        take_profit = float(self.body_widgets['take_profit'][b_index].get())
+        stop_loss = float(self.body_widgets['stop_loss'][b_index].get())
+
+        if self.body_widgets['activation'][b_index].cget('text') == "OFF":  # .cget() gets the text written in the ui
+            # create a new_strategy Object for selected strategy
+            # disable changes in the running strategy, change off button config and add log entry
+            if strategy_selected == "Technical":
+                new_strategy = TechnicalStrategy(contract, exchange, timeframe, balance_pct, take_profit,
+                                                 stop_loss, self._additional_parameters[b_index])
+
+            elif strategy_selected == "Breakout":
+                new_strategy = BreakoutStrategy(contract, exchange, timeframe, balance_pct, take_profit,
+                                                stop_loss, self._additional_parameters[b_index])
+
+            else:
+                return
+            
+            new_strategy.candles = self._exchanges[exchange].get_historical_candles(contract, timeframe)
+
+            if len(new_strategy.candles) == 0:
+                self.root.logging_frame.add_log(f"No historical data retrieved for {contract.symbol}.")
+                return
+
+            # When its added to the client on_open function, it closes because it quickly reaches subscription limit
+            # of 200. This way, we only subscribe for entered symbols
+            if exchange == "binance":
+                self._exchanges[exchange].subscribe_channel([contract], "aggTrade")
+
+            # here we add the started strategy to its client object.so, when client is run, websocket runs the
+            # strategy immediately
+            self._exchanges[exchange].strategies[b_index] = new_strategy
+
+            for param in self._base_params:
+                code_name = param['code_name']
+
+                if code_name != "activation" and "_var" not in code_name:
+                    self.body_widgets[code_name][b_index].config(state=tk.DISABLED)
+
+            self.body_widgets['activation'][b_index].config(bg="darkgreen", text="ON")
+            self.root.logging_frame.add_log(f"{strategy_selected} strategy on {symbol} / {timeframe} started.")
+
+        else:
+
+            del self._exchanges[exchange].strategies[b_index]
+
+            # enable changes in the running strategy, change on button config and add log entry
+            for param in self._base_params:
+                code_name = param['code_name']
+
+                if code_name != "activation" and "_var" not in code_name:
+                    self.body_widgets[code_name][b_index].config(state=tk.NORMAL)
+
+            self.body_widgets['activation'][b_index].config(bg="darkred", text="OFF")
+            self.root.logging_frame.add_log(f"{strategy_selected} strategy on {symbol} / {timeframe} /"
+                                            f"on {exchange} stopped.")

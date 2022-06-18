@@ -11,6 +11,8 @@ from keys import *
 import threading
 from models import *
 import websocket
+from strategies import *
+import dateutil.parser
 
 logger = logging.getLogger()
 
@@ -52,6 +54,9 @@ class BitmexClient:
         self._ws = None
 
         self.logs = []
+
+        # TODO: Instead of pointing out like that, can we say 'all child classes of Strategy class'?
+        self.strategies: typing.Dict[int, typing.Union[TechnicalStrategy, BreakoutStrategy]] = dict()
 
         t = threading.Thread(target=self._start_ws)
         t.start()
@@ -227,6 +232,7 @@ class BitmexClient:
         logger.info("Bitmex WebSocket connection opened.")
 
         self.subscribe_channel("instrument")
+        self.subscribe_channel("trade")
 
     def _on_close(self, ws):
         logger.warning("Bitmex WebSocket connection closed.")
@@ -253,6 +259,17 @@ class BitmexClient:
                         self.prices[symbol]['bid'] = d['bidPrice']
                     if 'askPrice' in d:
                         self.prices[symbol]['ask'] = d['askPrice']
+
+            if data['table'] == 'trade':
+                for d in data['data']:
+
+                    symbol = d['symbol']
+
+                    ts = int(dateutil.parser.isoparse(d['timestamp']).timestamp() * 1000)
+
+                    for key, strategy in self.strategies.items():
+                        if strategy.contract.symbol == symbol:
+                            strategy.parse_trades(float(d['price']), float(d['size']), ts)
 
     def subscribe_channel(self, topic: str):
         data = dict()

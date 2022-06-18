@@ -16,13 +16,7 @@ from keys import BINANCE_TESTNET_API_PUBLIC, BINANCE_TESTNET_API_SECRET
 
 
 from models import *
-
-# binance_url = "https://fapi.binance.com"
-# exchange_info_endpoint = "/fapi/v1/exchangeInfo" #GET
-# order_book_endpoint = "/fapi/v1/ticker/bookTicker"  # GET
-# binance_testnet_url = "https://testnet.binancefuture.com"
-# binance_websocket = "wss://fsrteam.binance.com"
-# binance_testnet_websocket = "wss://stream.binancefuture.com"
+from strategies import *
 
 """ 
 apis send requests and receive data 
@@ -41,7 +35,7 @@ binance_futures_url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     if self.is_get(method):
         response = self.get_request(endpoint, parameters)
 
-2- Balance should be a totally different class
+2- Balance should be a totally different class (that gets data from websocket)
 
 3- all this should be a child class of a strategy class (to try a strategy on different platforms etc.)
 """
@@ -72,6 +66,9 @@ class BinanceFuturesClient:
         self._ws = None
 
         self.logs = []
+
+        # TODO: Instead of pointing out like that, can we say 'all child classes of Strategy class'?
+        self.strategies: typing.Dict[int, typing.Union[TechnicalStrategy, BreakoutStrategy]] = dict()
 
         t = threading.Thread(target=self._start_ws)
         t.start()
@@ -286,6 +283,7 @@ class BinanceFuturesClient:
         logger.info("Binance WebSocket connection opened.")
 
         self.subscribe_channel(list(self.contracts.values()), "bookTicker")
+        # self.subscribe_channel(list(self.contracts.values()), "aggTrade")
 
     def _on_close(self, ws):
         logger.warning("Binance WebSocket connection closed.")
@@ -298,9 +296,8 @@ class BinanceFuturesClient:
         data = json.loads(msg)
 
         if "e" in data:
+            symbol = data['s']
             if data['e'] == 'bookTicker':
-
-                symbol = data['s']
 
                 if symbol not in self.prices:
                     self.prices[symbol] = {'bid': float(data['b']),
@@ -308,6 +305,12 @@ class BinanceFuturesClient:
                 else:
                     self.prices[symbol]['bid'] = float(data['b'])
                     self.prices[symbol]['ask'] = float(data['a'])
+
+            elif data['e'] == "aggTrade":
+
+                for key, strategy in self.strategies.items():
+                    if strategy.contract.symbol == symbol:
+                        strategy.parse_trades(float(data['p']), float(data['q']), data['T'])
 
     def subscribe_channel(self, contracts: typing.List[Contract], channel: str):
         data = dict()

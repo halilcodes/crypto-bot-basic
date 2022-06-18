@@ -53,6 +53,8 @@ class Candle:
             self._get_binance_candles()
         elif self.platform == "bitmex":
             self._get_bitmex_candles()
+        elif self.platform == "parse_trade":
+            self._get_parse_trade_candles()
 
     def _get_binance_candles(self):
         self.timestamp = self.candle_info[0]
@@ -68,6 +70,14 @@ class Candle:
         str_time = str_time - datetime.timedelta(minutes=BITMEX_TF_MINUTES[self.timeframe])
         self.timestamp = int(str_time.timestamp() * 1000)
         print(self.candle_info["timestamp"], str_time, self.timestamp)
+        self.open = self.candle_info["open"]
+        self.high = self.candle_info["high"]
+        self.low = self.candle_info["low"]
+        self.close = self.candle_info["close"]
+        self.volume = self.candle_info["volume"]
+
+    def _get_parse_trade_candles(self):
+        self.timestamp = self.candle_info['ts']
         self.open = self.candle_info["open"]
         self.high = self.candle_info["high"]
         self.low = self.candle_info["low"]
@@ -119,7 +129,7 @@ class Contract:
 
 
 class OrderStatus:
-
+    #   TODO: this class should hold a lot more data ie symbol, time, leverage etc.
     def __init__(self, platform, order_info):
         self.platform = platform
         self.order_info = order_info
