@@ -100,7 +100,6 @@ class BitmexClient:
             return response.json()
         else:
             print(response.status_code)
-            pprint.pprint(response.json())
 
     def get_contracts(self) -> typing.Dict[str, Contract]:
         endpoint = "/instrument/active"
@@ -183,7 +182,7 @@ class BitmexClient:
 
         return order_info
         
-    def get_order_status(self, order_id: str, contract: Contract) -> OrderStatus:
+    def get_order_status(self, contract: Contract, order_id: str) -> OrderStatus:
         endpoint = "/order"
         method = "GET"
         data = dict()

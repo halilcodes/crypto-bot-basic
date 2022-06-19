@@ -82,8 +82,8 @@ class Root(tk.Tk):
                             # websockets might not get all bid/asks so UI gets Attribute error for contract.symbol
                             # entered to the watchlist
                             logger.error("AttributeError while getting bid/asks for a symbol: %s", e)
-                            t = threading.Thread(target=self.binance._start_ws)
-                            t.start()
+                            # t = threading.Thread(target=self.binance._start_ws)
+                            # t.start()
                             # TODO: Sometimes Binance Websocket does not connect for 1-2 minutes,
                             # I need to be sure not to take action before connection established or
                             # retry connection like commented 2 lines above (?)

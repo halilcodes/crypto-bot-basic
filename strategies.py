@@ -1,6 +1,6 @@
 import logging
 import time
-
+from threading import Timer
 from models import *
 import typing
 import pandas as pd
@@ -8,10 +8,15 @@ import pandas as pd
 logger = logging.getLogger()
 TF_EQUIV = {"1m": 60, "50": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400}
 
+if typing.TYPE_CHECKING:
+    from connectors.bitmex import BitmexClient
+    from connectors.binance_futures import BinanceFuturesClient
+
 
 class Strategy:
-    def __init__(self, client, contract: Contract, exchange: str, timeframe: str, balance_pct: float,
-                 take_profit: float, stop_loss: float):
+    def __init__(self, client: typing.Union["BitmexClient", "BinanceFuturesClient"],
+                 contract: Contract, exchange: str, timeframe: str, balance_pct: float,
+                 take_profit: float, stop_loss: float, strategy_name: str):
 
         self.client = client
         self.contract = contract
@@ -22,9 +27,17 @@ class Strategy:
         self.take_profit = take_profit
         self.stop_loss = stop_loss
 
-        self.open_position = False
+        self.strategy_name = strategy_name
+
+        self.ongoing_position = False
 
         self.candles: typing.List[Candle] = []
+        self.trades: typing.List[Trade] = []
+        self.logs = []
+
+    def _add_log(self, msg: str):
+        logger.info("%s", msg)
+        self.logs.append({"log": msg, "displayed": False})
 
     def parse_trades(self, price: float, size: float, timestamp: int):
 
@@ -84,24 +97,62 @@ class Strategy:
 
             return "new_candle"
 
+    def _check_order_status(self, order_id):
+        order_status = self.client.get_order_status(self.contract, order_id)
+
+        if order_status is not None:
+            logger.info("%s order status: %s", self.exchange, order_status.status)
+
+            if order_status.status == "filled":
+                for trade in self.trades:
+                    if trade.entry_id == order_id:
+                        trade.entry_price = order_status.avg_price
+                        break
+                return
+        t = Timer(2.0, lambda: self._check_order_status(order_id))
+        t.start()
+
     def _open_position(self, signal_result: int):
         trade_size = self.client.get_trade_size(self.contract, self.candles[-1].close, self.balance_pct)
         if trade_size is None:
             return
 
+        order_side = "buy" if signal_result == 1 else "sell"
+        position_side = "long" if signal_result == 1 else "short"
+        
+        self._add_log(f"{position_side} signal on {self.contract.symbol} - {self.tf}")
+        order_status = self.client.place_order(self.contract, order_side, trade_size, "MARKET")
+
+        if order_status is not None:
+            self._add_log(f"{order_side.capitalize()} order placed on {self.exchange} | Status: {order_status.status}")
+
+            self.ongoing_position = True
+            avg_fill_price = None
+
+            if order_status == "filled":    # might change for another exchange
+                avg_fill_price = order_status.avg_price
+            else:
+                t = Timer(2.0, lambda: self._check_order_status(order_status.order_id))
+                t.start()
+
+            new_trade_specs = {"time": int(time.time() * 1000), "entry_price": avg_fill_price,
+                               "contract": self.contract, "strategy": self.strategy_name, "side": position_side,
+                               "status": "open", "pnl": 0, "quantity": trade_size, "entry_id": order_status.order_id}
+            new_trade = Trade(new_trade_specs)
+
+            self.trades.append(new_trade)
+
 
 class TechnicalStrategy(Strategy):
     def __init__(self, client, contract: Contract, exchange: str, timeframe: str, balance_pct: float,
                  take_profit: float, stop_loss: float, other_params: typing.Dict):
-        super().__init__(client, contract, exchange, timeframe, balance_pct, take_profit, stop_loss)
+        super().__init__(client, contract, exchange, timeframe, balance_pct, take_profit, stop_loss, "Technical")
 
         self._ema_fast = other_params["ema_fast"]
         self._ema_slow = other_params["ema_slow"]
         self._ema_signal = other_params["ema_signal"]
 
         self._rsi_length = other_params['rsi_length']
-
-        print("Activated strategy for", contract.platform, contract.symbol)
 
     def _rsi(self) -> float:
         close_list = [candle.close for candle in self.candles]
@@ -155,14 +206,14 @@ class TechnicalStrategy(Strategy):
         if tick_type == "new_candle":
             signal_result = self._check_signal()
 
-            if signal_result in [-1, 1] and not self.open_position:
+            if signal_result in [-1, 1] and not self.ongoing_position:
                 self._open_position(signal_result)
 
 
 class BreakoutStrategy(Strategy):
     def __init__(self, client, contract: Contract, exchange: str, timeframe: str, balance_pct: float,
                  take_profit: float, stop_loss: float, other_params: typing.Dict):
-        super().__init__(client, contract, exchange, timeframe, balance_pct, take_profit, stop_loss)
+        super().__init__(client, contract, exchange, timeframe, balance_pct, take_profit, stop_loss, "Breakout")
 
         self._min_volume = other_params["min_volume"]
 
@@ -179,7 +230,7 @@ class BreakoutStrategy(Strategy):
             return 0
 
     def check_trade(self):
-        if not self.open_position:
+        if not self.ongoing_position:
             signal_result = self._check_signal()
 
             if signal_result in [-1, 1]:

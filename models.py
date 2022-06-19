@@ -69,7 +69,7 @@ class Candle:
         str_time = dateutil.parser.isoparse(self.candle_info["timestamp"])
         str_time = str_time - datetime.timedelta(minutes=BITMEX_TF_MINUTES[self.timeframe])
         self.timestamp = int(str_time.timestamp() * 1000)
-        print(self.candle_info["timestamp"], str_time, self.timestamp)
+        # print(self.candle_info["timestamp"], str_time, self.timestamp)
         self.open = self.candle_info["open"]
         self.high = self.candle_info["high"]
         self.low = self.candle_info["low"]
@@ -147,10 +147,23 @@ class OrderStatus:
 
     def _get_binance_order_status(self):
         self.order_id = self.order_info['orderId']
-        self.status = self.order_info['status']
+        self.status = self.order_info['status'].lower()
         self.avg_price = float(self.order_info['avgPrice'])
 
     def _get_bitmex_order_status(self):
         self.order_id = self.order_info['orderID']
-        self.status = self.order_info['ordStatus']
+        self.status = self.order_info['ordStatus'].lower()
         self.avg_price = self.order_info['avgPx']
+
+
+class Trade:
+    def __init__(self, trade_info):
+        self.time: int = trade_info['time']
+        self.contract: Contract = trade_info['contract']
+        self.strategy: str = trade_info['strategy']
+        self.side: str = trade_info['side']
+        self.entry_price: float = trade_info['entry_price']
+        self.status: str = trade_info['status']
+        self.pnl: float = trade_info['pnl']
+        self.quantity = trade_info['quantity']
+        self.entry_id = trade_info['entry_id']
