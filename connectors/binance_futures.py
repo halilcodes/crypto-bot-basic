@@ -310,7 +310,8 @@ class BinanceFuturesClient:
 
                 for key, strategy in self.strategies.items():
                     if strategy.contract.symbol == symbol:
-                        strategy.parse_trades(float(data['p']), float(data['q']), data['T'])
+                        res = strategy.parse_trades(float(data['p']), float(data['q']), data['T'])
+                        strategy.check_trade(res)
 
     def subscribe_channel(self, contracts: typing.List[Contract], channel: str):
         data = dict()
@@ -329,6 +330,24 @@ class BinanceFuturesClient:
 
         self._ws_id += 1
         return
+
+    def get_trade_size(self, contract: Contract, price: float, balance_pct: float):
+
+        balance = self.get_balances()
+        if balance is not None:
+            if 'USDT' in balance:
+                balance = balance['USDT'].wallet_balance
+            else:
+                return None
+        else:
+            return None
+
+        trade_size = (balance * balance_pct / 100) * price
+        trade_size = round(round(trade_size / contract.lot_size) * contract.lot_size, 8)
+
+        logger.info("Binance Futures current USDT balance = %s, trade size = %s", balance, trade_size)
+
+        return trade_size
 
 
 if __name__ == "__main__":

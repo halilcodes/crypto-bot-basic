@@ -127,6 +127,13 @@ class Contract:
         self.price_decimals = tick_to_decimals(self.tick_size)
         self.quantity_decimals = tick_to_decimals(self.lot_size)
 
+        self.quanto = self.contract_info['isQuanto']
+        self.inverse = self.contract_info['isInverse']
+        self.multiplier = self.contract_info['multiplier'] * BITMEX_MULTIPLIER
+
+        if self.inverse:
+            self.multiplier *= -1
+
 
 class OrderStatus:
     #   TODO: this class should hold a lot more data ie symbol, time, leverage etc.

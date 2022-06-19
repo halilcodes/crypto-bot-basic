@@ -269,7 +269,8 @@ class BitmexClient:
 
                     for key, strategy in self.strategies.items():
                         if strategy.contract.symbol == symbol:
-                            strategy.parse_trades(float(d['price']), float(d['size']), ts)
+                            res = strategy.parse_trades(float(d['price']), float(d['size']), ts)
+                            strategy.check_trade(res)
 
     def subscribe_channel(self, topic: str):
         data = dict()
@@ -284,7 +285,32 @@ class BitmexClient:
 
         self._ws_id += 1
 
+    def get_trade_size(self, contract: Contract, price: float, balance_pct: float):
+        balance = self.get_balances()
+        if balance is not None:
+            if 'XBt' in balance:
+                balance = balance['XBt'].wallet_balance
+            else:
+                return None
+        else:
+            return None
+
+        xbt_size = balance * balance_pct / 100
+
+        # https://www.bitmex.com/app/perpetualContractsGuide
+        # https://www.bitmex.com/app/futuresGuide
+        if contract.inverse:
+            contracts_number = xbt_size / (contract.multiplier / price)
+        elif contract.quanto:
+            contracts_number = xbt_size / (contract.multiplier * price)
+        else:
+            contracts_number = xbt_size / (contract.multiplier * price)
+
+        logging.info("Bitmex current XBT balance =%s, contracts_number = %s", balance, contracts_number)
+
+        return int(contracts_number)
+
 
 if __name__ == "__main__":
 
-    bitmex = BitmexClient(BITMEX_API_PUBLIC, BITMEX_API_SECRET, testnet=True)
+    bitmex = BitmexClient(BITMEX_TESTNET_API_PUBLIC, BITMEX_TESTNET_API_SECRET, testnet=True)

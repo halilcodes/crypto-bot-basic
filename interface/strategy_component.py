@@ -69,6 +69,7 @@ class StrategyEditor(tk.Frame):
 
         self._extra_params = {
             "Technical": [
+                {"code_name": "rsi_length", "name": "RSI Periods", "widget": tk.Entry, "data_type": int},
                 {"code_name": "ema_fast", "name": "MACD Fast Length", "widget": tk.Entry, "data_type": int},
                 {"code_name": "ema_slow", "name": "MACD Slow Length", "widget": tk.Entry, "data_type": int},
                 {"code_name": "ema_signal", "name": "MACD Signal Length", "widget": tk.Entry, "data_type": int}
@@ -214,11 +215,13 @@ class StrategyEditor(tk.Frame):
             # create a new_strategy Object for selected strategy
             # disable changes in the running strategy, change off button config and add log entry
             if strategy_selected == "Technical":
-                new_strategy = TechnicalStrategy(contract, exchange, timeframe, balance_pct, take_profit,
+                new_strategy = TechnicalStrategy(self._exchanges[exchange], contract, exchange,
+                                                 timeframe, balance_pct, take_profit,
                                                  stop_loss, self._additional_parameters[b_index])
 
             elif strategy_selected == "Breakout":
-                new_strategy = BreakoutStrategy(contract, exchange, timeframe, balance_pct, take_profit,
+                new_strategy = BreakoutStrategy(self._exchanges[exchange], contract, exchange,
+                                                timeframe, balance_pct, take_profit,
                                                 stop_loss, self._additional_parameters[b_index])
 
             else:
