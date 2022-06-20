@@ -9,6 +9,8 @@ import typing
 import logging
 from keys import *
 import threading
+
+
 from models import *
 import websocket
 from strategies import *
@@ -100,6 +102,7 @@ class BitmexClient:
             return response.json()
         else:
             print(response.status_code)
+            pprint.pprint(response.json())
 
     def get_contracts(self) -> typing.Dict[str, Contract]:
         endpoint = "/instrument/active"
@@ -162,11 +165,12 @@ class BitmexClient:
 
         """
         # TODO: quantity parameter needs fine-tuning
+        print("we reached PLACE_ORDER bitmex")
 
         endpoint = "/order"
         method = "POST"
         data = dict()
-        data['symbol'] = contract.symbol
+        data['symbol'] = contract.symbol.upper()
         data['side'] = side.capitalize()
         data['orderQty'] = round(quantity / contract.lot_size) * contract.lot_size
         data['ordType'] = order_type.capitalize()
@@ -263,11 +267,17 @@ class BitmexClient:
                 for d in data['data']:
 
                     symbol = d['symbol']
+                    if symbol.startswith("."):
+                        continue
 
                     ts = int(dateutil.parser.isoparse(d['timestamp']).timestamp() * 1000)
 
                     for key, strategy in self.strategies.items():
-                        if strategy.contract.symbol == symbol:
+
+                        # print(f"we reached bitmex trade data for {strategy}")
+                        print(symbol, strategy.contract.symbol)
+                        if strategy.contract.symbol.lower() == symbol.lower():
+                            print(f" matching strategy for {symbol} // bitmex.py")
                             res = strategy.parse_trades(float(d['price']), float(d['size']), ts)
                             strategy.check_trade(res)
 
@@ -284,6 +294,8 @@ class BitmexClient:
 
         self._ws_id += 1
 
+    # TODO: automated order gets error here with 'Invalid orderQty' response (error code 400) on .place_order() method.
+    # orderQty must be greater than 100
     def get_trade_size(self, contract: Contract, price: float, balance_pct: float):
         balance = self.get_balances()
         if balance is not None:
@@ -313,3 +325,17 @@ class BitmexClient:
 if __name__ == "__main__":
 
     bitmex = BitmexClient(BITMEX_TESTNET_API_PUBLIC, BITMEX_TESTNET_API_SECRET, testnet=True)
+    solUsdt = bitmex.contracts['SOLUSDT']
+    print(solUsdt.lot_size)
+
+    print("symbol: ", solUsdt.symbol)
+    print("base_asset: ", solUsdt.base_asset)
+    print("quote_asset: ", solUsdt.quote_asset)
+    print("tick_size: ", solUsdt.tick_size)
+    print("lot_size: ", solUsdt.lot_size)
+    print("price_decimals: ", solUsdt.price_decimals)
+    print("quantity_decimals: ", solUsdt.quantity_decimals)
+    print("quanto", solUsdt.quanto)
+    print("inverse", solUsdt.inverse)
+    print("multiplier", solUsdt.multiplier)
+    # bitmex.place_order(sol, 'buy', 1000, 'MARKET')

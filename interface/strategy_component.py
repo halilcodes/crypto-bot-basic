@@ -203,6 +203,7 @@ class StrategyEditor(tk.Frame):
 
         contract_name = self.body_widgets['contract_var'][b_index].get()   # "ADAUSDT_Binance"
         symbol = contract_name.split("_")[0]
+        print(symbol, " //strategy_component.py")
         exchange = contract_name.split("_")[1]
         timeframe = self.body_widgets['timeframe_var'][b_index].get()
         contract = self._exchanges[exchange].contracts[symbol]
@@ -223,6 +224,7 @@ class StrategyEditor(tk.Frame):
                 new_strategy = BreakoutStrategy(self._exchanges[exchange], contract, exchange,
                                                 timeframe, balance_pct, take_profit,
                                                 stop_loss, self._additional_parameters[b_index])
+                print(f"{strategy_selected} chosen on {exchange} for {contract.symbol}// strategy_component.py")
 
             else:
                 return
@@ -235,12 +237,14 @@ class StrategyEditor(tk.Frame):
 
             # When its added to the client on_open function, it closes because it quickly reaches subscription limit
             # of 200. This way, we only subscribe for entered symbols
-            if exchange == "binance":
+            if exchange.lower() == "binance":
+                print("exchange is binance // strategy_component.py")
                 self._exchanges[exchange].subscribe_channel([contract], "aggTrade")
 
             # here we add the started strategy to its client object.so, when client is run, websocket runs the
             # strategy immediately
             self._exchanges[exchange].strategies[b_index] = new_strategy
+            print(self._exchanges["Bitmex"].strategies)
 
             for param in self._base_params:
                 code_name = param['code_name']

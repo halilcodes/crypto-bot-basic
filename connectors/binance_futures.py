@@ -182,6 +182,7 @@ class BinanceFuturesClient:
         Returns:
 
         """
+        print(f"we reached place_order binance for {contract.symbol} // binance_futures.py")
 
         endpoint = "/fapi/v1/order"    # POST
         data = dict()
@@ -297,6 +298,7 @@ class BinanceFuturesClient:
 
         if "e" in data:
             symbol = data['s']
+
             if data['e'] == 'bookTicker':
 
                 if symbol not in self.prices:
@@ -306,7 +308,8 @@ class BinanceFuturesClient:
                     self.prices[symbol]['bid'] = float(data['b'])
                     self.prices[symbol]['ask'] = float(data['a'])
 
-            elif data['e'] == "aggTrade":
+            if data['e'] == "aggTrade":
+                print(f"we reached Binance on_message: aggTrade for {symbol} // binance_futures.py")
 
                 for key, strategy in self.strategies.items():
                     if strategy.contract.symbol == symbol:
@@ -317,6 +320,7 @@ class BinanceFuturesClient:
         data = dict()
         data['method'] = "SUBSCRIBE"
         data['params'] = []
+        print(f"we reached binance subscribe_channel for {contracts[0].symbol.lower()} as {channel} // binance_futures.py")
 
         for contract in contracts:
             data['params'].append(contract.symbol.lower() + "@" + channel)

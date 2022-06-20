@@ -72,6 +72,9 @@ class Root(tk.Tk):
                 exchange = self._watchlist_frame.body_widgets['exchange'][key].cget('text')
 
                 if exchange == "Binance":
+
+                    self.binance.subscribe_channel([self.binance.contracts[symbol]], "aggTrade")
+
                     if symbol not in self.binance.contracts:
                         continue
                     if symbol not in self.binance.prices:
