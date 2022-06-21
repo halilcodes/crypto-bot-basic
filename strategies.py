@@ -121,7 +121,7 @@ class Strategy:
         position_side = "long" if signal_result == 1 else "short"
         
         self._add_log(f"{position_side} signal on {self.contract.symbol} - {self.tf}")
-        print("we reached _open_position breakout // strategies.py")
+        # print("we reached _open_position breakout // strategies.py")
         order_status = self.client.place_order(self.contract, order_side, trade_size, "MARKET")
 
         if order_status is not None:
@@ -233,7 +233,7 @@ class BreakoutStrategy(Strategy):
     def check_trade(self, tick_type):
         if not self.ongoing_position:
             signal_result = self._check_signal()
-            print(f"signal result is {signal_result} // strategies.py")
+            # print(f"signal result is {signal_result} // strategies.py")
 
             if signal_result in [-1, 1]:
                 self._open_position(signal_result)

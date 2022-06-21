@@ -281,6 +281,33 @@ class BitmexClient:
                     if 'askPrice' in d:
                         self.prices[symbol]['ask'] = d['askPrice']
 
+                    # PNL Calculation
+                    try:
+                        for b_index, strategy in self.strategies.items():
+                            if strategy.contract.symbol == symbol:
+                                for trade in strategy.trades:
+                                    if trade.status == "open" and trade.entry_price is not None:
+                                        if trade.side == "long":
+                                            price = self.prices[symbol]['bid']
+                                        else:
+                                            price = self.prices[symbol]['ask']
+                                        multiplier = trade.contract.multiplier
+                                        if trade.contract.inverse:
+                                            if trade.side == "long":
+                                                trade.pnl = (1 / trade.entry_price - 1 / price) *\
+                                                            trade.quantity * multiplier
+                                            elif trade.side == "short":
+                                                trade.pnl = (1 / price - 1 / trade.entry_price) *\
+                                                            trade.quantity * multiplier
+
+                                        else:
+                                            if trade.side == "long":
+                                                trade.pnl = (price - trade.entry_price) * trade.quantity * multiplier
+                                            elif trade.side == "short":
+                                                trade.pnl = (trade.entry_price - price) * trade.quantity * multiplier
+                    except RuntimeError as e:
+                        logger.error("Error while ooping through the Bitmex Strategies: %s", e)
+
             if data['table'] == 'trade':
                 for d in data['data']:
 

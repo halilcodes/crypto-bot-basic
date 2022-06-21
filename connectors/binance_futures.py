@@ -308,8 +308,21 @@ class BinanceFuturesClient:
                     self.prices[symbol]['bid'] = float(data['b'])
                     self.prices[symbol]['ask'] = float(data['a'])
 
+                # PNL Calculation
+                try:
+                    for b_index, strategy in self.strategies.items():
+                        if strategy.contract.symbol == symbol:
+                            for trade in strategy.trades:
+                                if trade.status == "open" and trade.entry_price is not None:
+                                    if trade.side == "long":
+                                        trade.pnl = (self.prices[symbol]['bid'] - trade.entry_price) * trade.quantity
+                                    elif trade.side == "short":
+                                        trade.pnl = (trade.entry_price - self.prices[symbol]['ask']) * trade.quantity
+                except RuntimeError as e:
+                    logger.error("Error while ooping through the Binance Strategies: %s", e)
+
             if data['e'] == "aggTrade":
-                print(f"we reached Binance on_message: aggTrade for {symbol} // binance_futures.py")
+                # print(f"we reached Binance on_message: aggTrade for {symbol} // binance_futures.py")
 
                 for key, strategy in self.strategies.items():
                     if strategy.contract.symbol == symbol:
@@ -320,7 +333,7 @@ class BinanceFuturesClient:
         data = dict()
         data['method'] = "SUBSCRIBE"
         data['params'] = []
-        print(f"we reached binance subscribe_channel for {contracts[0].symbol.lower()} as {channel} // binance_futures.py")
+        # print(f"we reached binance subscribe_channel for {contracts[0].symbol.lower()} as {channel} // binance_futures.py")
 
         for contract in contracts:
             data['params'].append(contract.symbol.lower() + "@" + channel)

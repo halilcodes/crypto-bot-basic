@@ -14,7 +14,6 @@ from connectors.binance_futures import BinanceFuturesClient
 from interface.watchlist_component import WatchList
 from interface.trades_component import TradesWatch
 from interface.strategy_component import StrategyEditor
-import threading
 
 logger = logging.getLogger()
 
@@ -63,6 +62,33 @@ class Root(tk.Tk):
             if not log["displayed"]:
                 self.logging_frame.add_log(log['log'])
                 log['displayed'] = True
+
+        # Trades and Logs
+
+        for client in [self.binance, self.bitmex]:
+            try:
+
+                for b_index, strategy in client.strategies.items():
+                    for log in strategy.logs:
+                        if not log['displayed']:
+                            self.logging_frame.add_log(log['log'])
+                            log['displayed'] = True
+
+                    for trade in strategy.trades:
+                        if trade.time not in self._trades_frame.body_widgets['symbol']:  # we can select any column
+                            self._trades_frame.add_trade(trade)
+
+                        if trade.contract.platform == "binance":
+                            precision_pnl = trade.contract.price_decimals
+                        else:
+                            precision_pnl = 8   # pnl will always be in xbt for bitmex (??)
+
+                        pnl_str = "{0:.{prec}f}".format(trade.pnl, prec=precision_pnl)
+                        self._trades_frame.body_widgets['pnl_var'][trade.time].set(pnl_str)
+                        self._trades_frame.body_widgets['status_var'][trade.time].set(trade.status.capitalize())
+
+            except RuntimeError as e:
+                logger.error("RuntimeError while looping through strategies dictionary: %s", e)
 
         # Watchlist Prices
 
