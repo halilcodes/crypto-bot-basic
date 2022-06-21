@@ -359,3 +359,4 @@ if __name__ == "__main__":
                                    BINANCE_TESTNET_API_SECRET, testnet=True)
 
     pprint.pprint(binance.get_balances())
+    pprint.pprint(binance.prices)

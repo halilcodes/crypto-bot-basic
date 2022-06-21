@@ -149,7 +149,7 @@ class BitmexClient:
 
         return candles
 
-    def place_order(self, contract: Contract, side: str, quantity: int,
+    def place_order(self, contract: Contract, side: str, quantity: float,
                     order_type: str, price=None, tif=None) -> OrderStatus:
         """
         Args:
@@ -165,6 +165,11 @@ class BitmexClient:
 
         """
         # TODO: quantity parameter needs fine-tuning
+
+        input_quantity = round(quantity / (contract.multiplier / 0.01), 8)
+        print(input_quantity)
+
+
         print("we reached PLACE_ORDER bitmex")
 
         endpoint = "/order"
@@ -172,10 +177,10 @@ class BitmexClient:
         data = dict()
         data['symbol'] = contract.symbol.upper()
         data['side'] = side.capitalize()
-        data['orderQty'] = round(quantity / contract.lot_size) * contract.lot_size
+        data['orderQty'] = round(round(input_quantity / contract.lot_size) * contract.lot_size, 8)
         data['ordType'] = order_type.capitalize()
         if price is not None:
-            data['price'] = round(round(price / contract.tick_size) * contract.tick_size, 8)
+            data['price'] = round(price / contract.tick_size) * contract.tick_size
         if tif is not None:
             data['timeInForce'] = tif
 
@@ -218,7 +223,20 @@ class BitmexClient:
         pass
 
     def get_bid_ask(self, contract: Contract):
-        pass
+        contract.symbol = contract.symbol.upper()
+        endpoint = "/quote"
+        method = "GET"
+        data = dict()
+        data['symbol'] = contract.symbol
+        data['count'] = 1
+        data['reverse'] = True
+
+        bid_ask_info = self._make_request(method, endpoint, data)
+        # pprint.pprint(bid_ask_info)
+        if bid_ask_info is not None:
+            return {'bid': bid_ask_info[0]['bidPrice'], 'ask': bid_ask_info[0]['askPrice']}
+        else:
+            return None
 
     def _start_ws(self):
         self._ws = websocket.WebSocketApp(self._wss_url,
@@ -325,17 +343,65 @@ class BitmexClient:
 if __name__ == "__main__":
 
     bitmex = BitmexClient(BITMEX_TESTNET_API_PUBLIC, BITMEX_TESTNET_API_SECRET, testnet=True)
+    # bitmex = BitmexClient(BITMEX_REAL_API_PUBILC, BITMEX_REAL_API_SECRET, testnet=False)
+    linkUsdt = bitmex.contracts['LINKUSDT']
     solUsdt = bitmex.contracts['SOLUSDT']
-    print(solUsdt.lot_size)
+    xbtUsdt = bitmex.contracts['XBTUSDT']
 
+    print("LINKUSDT: ")
+    print("symbol: ", linkUsdt.symbol)
+    print("base_asset: ", linkUsdt.base_asset)
+    print("quote_asset: ", linkUsdt.quote_asset)
+    print("tick_size: ", linkUsdt.tick_size)    # 0.001
+    print("lot_size: ", linkUsdt.lot_size)
+    print("price_decimals: ", linkUsdt.price_decimals)  # 3
+    print("quantity_decimals: ", linkUsdt.quantity_decimals)
+    print("quanto", linkUsdt.quanto)
+    print("inverse", linkUsdt.inverse)
+    print("multiplier", linkUsdt.multiplier)
+    print("current bid/ask", bitmex.get_bid_ask(linkUsdt))
+    link_ask = bitmex.get_bid_ask(linkUsdt)['ask']
+    print("*" * 50)
+
+    print("SOLSUDT: ")
     print("symbol: ", solUsdt.symbol)
     print("base_asset: ", solUsdt.base_asset)
     print("quote_asset: ", solUsdt.quote_asset)
-    print("tick_size: ", solUsdt.tick_size)
+    print("tick_size: ", solUsdt.tick_size)  # 0.01
     print("lot_size: ", solUsdt.lot_size)
-    print("price_decimals: ", solUsdt.price_decimals)
+    print("price_decimals: ", solUsdt.price_decimals)  # 2
     print("quantity_decimals: ", solUsdt.quantity_decimals)
     print("quanto", solUsdt.quanto)
     print("inverse", solUsdt.inverse)
     print("multiplier", solUsdt.multiplier)
-    # bitmex.place_order(sol, 'buy', 1000, 'MARKET')
+    print("current bid/ask", bitmex.get_bid_ask(solUsdt))
+    sol_ask = bitmex.get_bid_ask(solUsdt)['ask']
+    print("*" * 50)
+
+    print("XBTUSDT: ")
+    print("symbol: ", xbtUsdt.symbol)
+    print("base_asset: ", xbtUsdt.base_asset)
+    print("quote_asset: ", xbtUsdt.quote_asset)
+    print("tick_size: ", xbtUsdt.tick_size)  # 0.5
+    print("lot_size: ", xbtUsdt.lot_size)
+    print("price_decimals: ", xbtUsdt.price_decimals)  # 1
+    print("quantity_decimals: ", xbtUsdt.quantity_decimals)
+    print("quanto: ", xbtUsdt.quanto)
+    print("inverse: ", xbtUsdt.inverse)
+    print("multiplier: ", xbtUsdt.multiplier)
+    print("current bid/ask", bitmex.get_bid_ask(xbtUsdt))
+    xbt_ask = bitmex.get_bid_ask(xbtUsdt)['ask']
+    print("*" * 50)
+
+    # bitmex.place_order(xbtUsdt, "buy", 1000, "market")  # size: 0.001 XBT
+    # bitmex.place_order(xbtUsdt, "buy", 10000, "market")  # size: 0.01 XBT
+
+    # bitmex.place_order(solUsdt, "buy", 0.1, "market")  # size: 0.1 SOL
+    # bitmex.place_order(solUsdt, "buy", 0.11, "market")  # size: 0.1 SOL
+
+    # bitmex.place_order(linkUsdt, "buy", 1, "market")  # size: 1 link
+    # bitmex.place_order(linkUsdt, "buy", 1.1, "market")  # size: 1 link
+
+    # bitmex.place_order(solUsdt, "buy", 12, "limit", price=20.513218)    # 12 sol @20.51 usdt
+    # bitmex.place_order(linkUsdt, "buy", 12, "limit", price=2.513218)    # 12 link @2.513 usdt
+
