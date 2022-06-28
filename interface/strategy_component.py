@@ -1,3 +1,4 @@
+import json
 import tkinter as tk
 
 from interface.styling import *
@@ -6,6 +7,7 @@ from connectors.binance_futures import BinanceFuturesClient
 from strategies import *
 from utils import *
 from interface.scrollable_frame import ScrollableFrame
+from database import WorkspaceData
 
 
 class StrategyEditor(tk.Frame):
@@ -13,6 +15,8 @@ class StrategyEditor(tk.Frame):
         super().__init__(*args, **kwargs)
 
         self.root = root
+
+        self.db = WorkspaceData()
 
         self._valid_integer = self.register(check_integer_format)
         self._valid_float = self.register(check_float_format)
@@ -40,7 +44,7 @@ class StrategyEditor(tk.Frame):
 
         self._headers_frame = tk.Frame(self._table_frame, bg=BG_COLOR)
 
-        self._additional_parameters = dict()
+        self.additional_parameters = dict()
         # _extra_input is specific for each popup, so the code does not store for extra inputs for each strategy
         # but it does not seem right
         self._extra_input = dict()
@@ -82,7 +86,7 @@ class StrategyEditor(tk.Frame):
         self._body_frame = ScrollableFrame(self._table_frame, bg=BG_COLOR, height=250)
         self._body_frame.pack(side=tk.TOP, fill=tk.X, anchor="nw")
 
-        self._extra_params = {
+        self.extra_params = {
             "Technical": [
                 {"code_name": "rsi_length", "name": "RSI Periods", "widget": tk.Entry, "data_type": int},
                 {"code_name": "ema_fast", "name": "MACD Fast Length", "widget": tk.Entry, "data_type": int},
@@ -100,6 +104,8 @@ class StrategyEditor(tk.Frame):
                 self.body_widgets[h['code_name'] + "_var"] = dict()
 
         self._body_index = 1
+
+        self._load_workspace()
 
     def _add_strategy_row(self):
         b_index = self._body_index
@@ -138,11 +144,11 @@ class StrategyEditor(tk.Frame):
 
             self.body_widgets[code_name][b_index].grid(row=b_index, column=col, padx=2)
 
-        self._additional_parameters[b_index] = dict()
+        self.additional_parameters[b_index] = dict()
 
-        for strat, params in self._extra_params.items():
+        for strat, params in self.extra_params.items():
             for param in params:
-                self._additional_parameters[b_index][param['code_name']] = None
+                self.additional_parameters[b_index][param['code_name']] = None
 
         self._body_index += 1
 
@@ -152,7 +158,7 @@ class StrategyEditor(tk.Frame):
             self.body_widgets[element['code_name']][b_index].grid_forget()
 
             del self.body_widgets[element['code_name']][b_index]
-        del self._additional_parameters[b_index]
+        del self.additional_parameters[b_index]
         # pprint.pprint(self._additional_parameters)
         # print(f"b_index = {b_index}")
         # print("*" * 50)
@@ -173,7 +179,7 @@ class StrategyEditor(tk.Frame):
         # TODO: I don't get it!
 
         row_num = 0
-        for param in self._extra_params[strategy_selected]:
+        for param in self.extra_params[strategy_selected]:
             code_name = param['code_name']
 
             temp_label = tk.Label(self._popup_window, bg=BG_COLOR, fg=FG_COLOR, text=param['name'], font=BOLD_FONT)
@@ -188,8 +194,8 @@ class StrategyEditor(tk.Frame):
                 if param['data_type'] == float:
                     self._extra_input[code_name].config(validate='key', validatecommand=(self._valid_float, "%P"))
 
-                if self._additional_parameters[b_index][code_name] is not None:
-                    self._extra_input[code_name].insert(0, str(self._additional_parameters[b_index][code_name]))
+                if self.additional_parameters[b_index][code_name] is not None:
+                    self._extra_input[code_name].insert(0, str(self.additional_parameters[b_index][code_name]))
             else:
                 continue
 
@@ -206,13 +212,13 @@ class StrategyEditor(tk.Frame):
     def _validate_parameters(self, b_index: int):
         strategy_selected = self.body_widgets['strategy_type_var'][b_index].get()
 
-        for param in self._extra_params[strategy_selected]:
+        for param in self.extra_params[strategy_selected]:
             code_name = param['code_name']
 
             if self._extra_input[code_name].get() == "":
-                self._additional_parameters[b_index][code_name] = None
+                self.additional_parameters[b_index][code_name] = None
             else:
-                self._additional_parameters[b_index][code_name] = param['data_type'](self._extra_input[code_name].get())
+                self.additional_parameters[b_index][code_name] = param['data_type'](self._extra_input[code_name].get())
 
         self._popup_window.destroy()
 
@@ -225,9 +231,9 @@ class StrategyEditor(tk.Frame):
 
         strategy_selected = self.body_widgets['strategy_type_var'][b_index].get()
 
-        for param in self._extra_params[strategy_selected]:
+        for param in self.extra_params[strategy_selected]:
             code_name = param['code_name']
-            if self._additional_parameters[b_index][code_name] is None:
+            if self.additional_parameters[b_index][code_name] is None:
                 self.root.logging_frame.add_log(f"Missing {code_name} parameter")
                 return
 
@@ -248,12 +254,12 @@ class StrategyEditor(tk.Frame):
             if strategy_selected == "Technical":
                 new_strategy = TechnicalStrategy(self._exchanges[exchange], contract, exchange,
                                                  timeframe, balance_pct, take_profit,
-                                                 stop_loss, self._additional_parameters[b_index])
+                                                 stop_loss, self.additional_parameters[b_index])
 
             elif strategy_selected == "Breakout":
                 new_strategy = BreakoutStrategy(self._exchanges[exchange], contract, exchange,
                                                 timeframe, balance_pct, take_profit,
-                                                stop_loss, self._additional_parameters[b_index])
+                                                stop_loss, self.additional_parameters[b_index])
                 print(f"{strategy_selected} chosen on {exchange} for {contract.symbol}// strategy_component.py")
 
             else:
@@ -299,3 +305,22 @@ class StrategyEditor(tk.Frame):
             self.body_widgets['activation'][b_index].config(bg="darkred", text="OFF")
             self.root.logging_frame.add_log(f"{strategy_selected} strategy on {symbol} / {timeframe} /"
                                             f"on {exchange} stopped.")
+
+    def _load_workspace(self):
+        data = self.db.get("strategies")
+
+        for row in data:
+            self._add_strategy_row()
+            b_index = self._body_index - 1
+
+            for base_param in self._base_params:
+                code_name = base_param['code_name']
+                if base_param['widget'] == tk.OptionMenu and row[code_name] is not None:
+                    self.body_widgets[code_name + "_var"][b_index].set(row[code_name])
+                elif base_param['widget'] == tk.Entry and row[code_name] is not None:
+                    self.body_widgets[code_name][b_index].inset(tk.END, row[code_name])
+
+            extra_params = json.loads(row["extra_params"])
+            for param, value in extra_params.items():
+                if value is not None:
+                    self.additional_parameters[b_index][param] = value

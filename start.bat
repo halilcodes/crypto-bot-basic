@@ -1,0 +1,1 @@
+C:\Users\OWNER\anaconda3\envs\bot-env\python.exe main.py

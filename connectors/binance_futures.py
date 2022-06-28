@@ -63,7 +63,8 @@ class BinanceFuturesClient:
 
         self.prices = dict()
         self._ws_id = 1
-        self._ws = None
+        self.ws: websocket.WebSocketApp
+        self.reconnect = True
 
         self.logs = []
 
@@ -270,12 +271,15 @@ class BinanceFuturesClient:
         return open_orders
 
     def _start_ws(self):
-        self._ws = websocket.WebSocketApp(self._wss_url,
-                                          on_open=self._on_open, on_close=self._on_close,
-                                          on_error=self._on_error, on_message=self._on_message)
+        self.ws = websocket.WebSocketApp(self._wss_url,
+                                         on_open=self._on_open, on_close=self._on_close,
+                                         on_error=self._on_error, on_message=self._on_message)
         while True:
             try:
-                self._ws.run_forever()
+                if self.reconnect:
+                    self.ws.run_forever()
+                else:
+                    break
             except Exception as e:
                 logger.error("Binance error in run_forever() method: %s", e)
             time.sleep(2)
@@ -319,7 +323,7 @@ class BinanceFuturesClient:
                                     elif trade.side == "short":
                                         trade.pnl = (trade.entry_price - self.prices[symbol]['ask']) * trade.quantity
                 except RuntimeError as e:
-                    logger.error("Error while ooping through the Binance Strategies: %s", e)
+                    logger.error("Error while looping through the Binance Strategies: %s", e)
 
             if data['e'] == "aggTrade":
                 # print(f"we reached Binance on_message: aggTrade for {symbol} // binance_futures.py")
@@ -340,7 +344,7 @@ class BinanceFuturesClient:
         data['id'] = self._ws_id
 
         try:
-            self._ws.send(json.dumps(data))
+            self.ws.send(json.dumps(data))
         except Exception as e:
             logger.error("Websocket error while subscribing to %s %s updates: %s",
                          len(contracts), channel, e)
